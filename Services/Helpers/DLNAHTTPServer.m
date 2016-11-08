@@ -39,6 +39,7 @@
     {
         _allSubscriptions = [NSMutableDictionary new];
     }
+    NSLog(@"init DLNAHTTPSERVER");
 
     return self;
 }
@@ -70,8 +71,13 @@
     [self.server addDefaultHandlerForMethod:@"NOTIFY"
                                requestClass:[GCDWebServerDataRequest class]
                                processBlock:webServerResponseBlock];
-
-    [self.server startWithPort:49291 bonjourName:nil];
+    //startWithOptions:error
+    //[self.server startWithPort:49290 bonjourName:nil];
+    NSDictionary *options = @{@"AutomaticallySuspendInBackground" : @NO,
+                              @"Port" : @49291,
+                                };
+    NSLog(@"starting http server");
+    [self.server startWithOptions:options error:nil];
 }
 
 - (void) stop
