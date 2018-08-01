@@ -214,6 +214,7 @@
 {
     [_services enumerateKeysAndObjectsUsingBlock:^(id key, DeviceService *service, BOOL *stop)
     {
+        NSLog(@"Disconnect 1");
         if (service.connected)
             [service disconnect];
     }];
@@ -330,6 +331,7 @@
         return;
 
     NSArray *oldCapabilities = self.capabilities;
+    NSLog(@"Disconnect 2");
 
     [service disconnect];
 

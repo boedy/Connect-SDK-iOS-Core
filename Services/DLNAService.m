@@ -417,7 +417,7 @@ static const NSInteger kValueNotFound = -1;
                 if (sessionId)
                     _httpServerSessionIds[serviceId] = sessionId;
 
-                [self performSelector:@selector(resubscribeSubscriptions) withObject:nil afterDelay:kSubscriptionTimeoutSeconds / 2];
+                [self performSelector:@selector(resubscribeSubscriptions) withObject:nil afterDelay:kSubscriptionTimeoutSeconds / 75];
             }
         }];
     }];
@@ -426,6 +426,8 @@ static const NSInteger kValueNotFound = -1;
 - (void) resubscribeSubscriptions
 {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(resubscribeSubscriptions) object:nil];
+    
+    NSLog(@"resubscribing");
 
     [_serviceDescription.serviceList enumerateObjectsUsingBlock:^(id service, NSUInteger idx, BOOL *stop) {
         NSString *serviceId = service[@"serviceId"][@"text"];
@@ -447,12 +449,17 @@ static const NSInteger kValueNotFound = -1;
         [NSURLConnection sendAsynchronousRequest:request queue:[NSOperationQueue mainQueue] completionHandler:^(NSURLResponse *_response, NSData *data, NSError *connectionError) {
             NSHTTPURLResponse *response = (NSHTTPURLResponse *)_response;
 
-            if (connectionError || !response)
+            if (connectionError || !response){
+                NSLog(@"RESUBSCIBED FAILED!");
+                
                 return;
+            }
+            
 
             if (response.statusCode == 200)
             {
-                [self performSelector:@selector(resubscribeSubscriptions) withObject:nil afterDelay:kSubscriptionTimeoutSeconds / 2];
+                NSLog(@"RESUBSCIBED");
+                [self performSelector:@selector(resubscribeSubscriptions) withObject:nil afterDelay:kSubscriptionTimeoutSeconds / 75];
             }
         }];
     }];

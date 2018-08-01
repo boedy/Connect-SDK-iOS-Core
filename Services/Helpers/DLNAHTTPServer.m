@@ -26,6 +26,7 @@
 #import "GCDWebServerDataRequest.h"
 #import "GCDWebServerHTTPStatusCodes.h"
 #import "ConnectUtil.h"
+#import <UIKit/UIKit.h>
 
 
 @implementation DLNAHTTPServer
@@ -39,9 +40,16 @@
     {
         _allSubscriptions = [NSMutableDictionary new];
     }
+    
+    
     NSLog(@"init DLNAHTTPSERVER");
 
     return self;
+}
+
+- (void)enteredForeground:(NSNotification*) not
+{
+    //do stuff here
 }
 
 - (BOOL) isRunning
@@ -57,9 +65,13 @@
     [self stop];
 
     [_allSubscriptions removeAllObjects];
+//    [GCDWebServer setLogLevel:0];
 
     _server = [[GCDWebServer alloc] init];
     _server.delegate = self;
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_didEnterBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_willEnterForeground:) name:UIApplicationWillEnterForegroundNotification object:nil];
 
     GCDWebServerResponse *(^webServerResponseBlock)(GCDWebServerRequest *request) = ^GCDWebServerResponse *(GCDWebServerRequest *request) {
         [self processRequest:(GCDWebServerDataRequest *)request];
@@ -68,6 +80,7 @@
         return [GCDWebServerResponse responseWithStatusCode:kGCDWebServerHTTPStatusCode_OK];
     };
 
+    
     [self.server addDefaultHandlerForMethod:@"NOTIFY"
                                requestClass:[GCDWebServerDataRequest class]
                                processBlock:webServerResponseBlock];
@@ -84,6 +97,11 @@
 {
     if (!_server)
         return;
+    
+    NSLog(@"RESUBSCIBED stopping server!");
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidEnterBackgroundNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationWillEnterForegroundNotification object:nil];
 
     self.server.delegate = nil;
 
@@ -92,6 +110,22 @@
 
     _server = nil;
 }
+
+- (void)_didEnterBackground:(NSNotification*)notification {
+    //do something
+}
+
+- (void)_willEnterForeground:(NSNotification*)notification {
+//    if (_server.isRunning)
+//        [self.server stop];
+//    NSDictionary *options = @{@"AutomaticallySuspendInBackground" : @NO,
+//                              @"Port" : @49291,
+//                              };
+//    NSLog(@"starting http server");
+//    [self.server startWithOptions:options error:nil];
+    
+}
+
 
 /// Returns a service subscription key for the given URL. Different service URLs
 /// should produce different keys by extracting the relative path, e.g.:

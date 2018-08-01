@@ -136,12 +136,6 @@ static const NSUInteger kSSDPMulticastTCPPort = 1900;
 
 #pragma mark - DIAL Service Filtering Tests
 
-- (void)testShouldFindFireTVWithDIALService {
-    [self checkShouldFindDevice:@"firetv"
-       withExpectedFriendlyName:@"Fire TV"
-        usingDiscoveryProviders:@[[DIALService class]]];
-}
-
 - (void)testShouldFindChromecastWithDIALService {
     [self checkShouldFindDevice:@"chromecast"
        withExpectedFriendlyName:@"Chromecast"

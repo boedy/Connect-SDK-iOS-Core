@@ -41,9 +41,6 @@ NS_ASSUME_NONNULL_BEGIN
  * - Google Cast service supports @c WebVTT format only and has additional
  * requirements: https://developers.google.com/cast/docs/ios_sender#cors-requirements
  *
- * - FireTV service supports @c WebVTT format only. Subtitles on Fire TV are
- * hidden by default and should be displayed manually by the user.
- *
  * - WebOS service supports @c WebVTT format only. Server providing subtitles
  * should support CORS headers, similarly to Cast service's requirements.
  */
