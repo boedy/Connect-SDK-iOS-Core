@@ -29,6 +29,7 @@
     
     if (self)
     {
+        self.groupInfo = @"N\\A";
         self.address = address;
         self.UUID = UUID;
         self.port = 0;
@@ -51,6 +52,7 @@
 
     if (self)
     {
+        self.groupInfo = dict[@"groupInfo"];
         self.serviceId = dict[@"serviceId"];
         self.address = dict[@"address"];
         self.port = [dict[@"port"] intValue];
@@ -76,6 +78,7 @@
 {
     NSMutableDictionary *dictionary = [NSMutableDictionary new];
 
+    if (self.groupInfo) dictionary[@"groupInfo"] = self.groupInfo;
     if (self.serviceId) dictionary[@"serviceId"] = self.serviceId;
     if (self.address) dictionary[@"address"] = self.address;
     if (self.port) dictionary[@"port"] = @(self.port);
@@ -97,6 +100,7 @@
 - (id) copy
 {
     ServiceDescription *serviceDescription = [[ServiceDescription alloc] initWithAddress:[self.address copy] UUID:[self.UUID copy]];
+    serviceDescription.groupInfo = self.groupInfo;
     serviceDescription.serviceId = [self.serviceId copy];
     serviceDescription.port = self.port;
     serviceDescription.type = [self.type copy];
@@ -132,6 +136,7 @@
                                   STRING_PROPERTY(UUID),
                                   STRING_PROPERTY(type),
                                   STRING_PROPERTY(version),
+                                  STRING_PROPERTY(groupInfo),
                                   STRING_PROPERTY(friendlyName),
                                   STRING_PROPERTY(manufacturer),
                                   STRING_PROPERTY(modelName),

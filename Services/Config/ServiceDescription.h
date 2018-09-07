@@ -29,6 +29,7 @@
 @property (nonatomic, strong) NSString *UUID;
 @property (nonatomic, strong) NSString *type;
 @property (nonatomic, strong) NSString *version;
+@property (nonatomic, strong) NSString *groupInfo;
 @property (nonatomic, strong) NSString *friendlyName;
 @property (nonatomic, strong) NSString *manufacturer;
 @property (nonatomic, strong) NSString *modelName;
