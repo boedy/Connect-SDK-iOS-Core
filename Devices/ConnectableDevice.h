@@ -81,6 +81,9 @@
 /*! Last IP address this ConnectableDevice was discovered at. */
 @property (nonatomic, copy) NSString *lastKnownIPAddress;
 
+/*! Check if device is groupInfo */
+@property (nonatomic, copy) NSString *groupInfo;
+
 /*! Name of the last wireless network this ConnectableDevice was discovered on. */
 @property (nonatomic, copy) NSString *lastSeenOnWifi;
 

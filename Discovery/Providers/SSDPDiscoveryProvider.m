@@ -218,8 +218,10 @@ static double searchAttemptsBeforeKill = 6.0;
                                                                    (__bridge  CFURLRef)[NSURL URLWithString: @"*"], kCFHTTPVersion1_1);
     CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("HOST"), (__bridge  CFStringRef) _ssdpHostName);
     CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("MAN"), CFSTR("\"ssdp:discover\""));
-    CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("MX"), CFSTR("5"));
-    CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("ST"),  (__bridge  CFStringRef)filter);
+    CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("MX"), CFSTR("10"));
+//    CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("ST"),  (__bridge  CFStringRef)filter);
+    //  Only search for Sonos speaker groups
+    CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("ST"), CFSTR("urn:smartspeaker-audio:service:SpeakerGroup:1"));
     CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("USER-AGENT"), (__bridge CFStringRef)[self userAgentForToken:userAgentToken]);
 
     NSData *message = CFBridgingRelease(CFHTTPMessageCopySerializedMessage(theSearchRequest));
@@ -237,10 +239,14 @@ static double searchAttemptsBeforeKill = 6.0;
 		_multicastSocket.delegate = self;
         [_multicastSocket open];
     }
-
+    
     [_searchSocket sendData:message toAddress:kSSDP_multicast_address andPort:kSSDP_port];
     [self performBlock:^{ [_searchSocket sendData:message toAddress:kSSDP_multicast_address andPort:kSSDP_port]; } afterDelay:1];
     [self performBlock:^{ [_searchSocket sendData:message toAddress:kSSDP_multicast_address andPort:kSSDP_port]; } afterDelay:2];
+
+    [_multicastSocket sendData:message toAddress:kSSDP_multicast_address andPort:kSSDP_port];
+    [self performBlock:^{ [_multicastSocket sendData:message toAddress:kSSDP_multicast_address andPort:kSSDP_port]; } afterDelay:1];
+    [self performBlock:^{ [_multicastSocket sendData:message toAddress:kSSDP_multicast_address andPort:kSSDP_port]; } afterDelay:2];
     
     CFRelease(theSearchRequest);
 }
@@ -264,7 +270,7 @@ static double searchAttemptsBeforeKill = 6.0;
 		NSString *theRequestMethod = CFBridgingRelease (CFHTTPMessageCopyRequestMethod(theHTTPMessage));
 		NSInteger theCode = CFHTTPMessageGetResponseStatusCode(theHTTPMessage);
 		NSDictionary *theHeaderDictionary = CFBridgingRelease(CFHTTPMessageCopyAllHeaderFields(theHTTPMessage));
-        
+
 		BOOL isNotify = [theRequestMethod isEqualToString:@"NOTIFY"];
 		NSString *theType = (isNotify) ? theHeaderDictionary[@"NT"] : theHeaderDictionary[@"ST"];
         
@@ -278,7 +284,7 @@ static double searchAttemptsBeforeKill = 6.0;
 
         if ((theCode == 200) &&
             ![theRequestMethod isEqualToString:@"M-SEARCH"] &&
-            [self isSearchingForFilter:theType] &&
+//            [self isSearchingForFilter:theType] &&
             (theUSSNKey.length > 0))
         {
             //Extract the UUID
@@ -290,7 +296,7 @@ static double searchAttemptsBeforeKill = 6.0;
             range.location = range.location + 5;
             range.length = MIN(range.length - 7, (theUSSNKey.length -range.location));
             theUUID = [theUSSNKey substringWithRange:range];
-            
+        
             if (theUUID && theUUID.length > 0)
             {
                 // If it is a NOTIFY - byebye message - try to find a device from a list and send him byebye
@@ -332,6 +338,13 @@ static double searchAttemptsBeforeKill = 6.0;
                             //Check that this is what is wanted
                             foundService.UUID = theUUID;
                             foundService.type =  theType;
+                            if ([theHeaderDictionary objectForKey:@"GROUPINFO.SMARTSPEAKER.AUDIO"] )
+                            {
+                                foundService.groupInfo = theHeaderDictionary[@"GROUPINFO.SMARTSPEAKER.AUDIO"];
+                            } else
+                            {
+                                foundService.groupInfo = @"N\\A";
+                            }
                             foundService.address = anAddress;
                             foundService.port = 3001;
                             isNew = YES;

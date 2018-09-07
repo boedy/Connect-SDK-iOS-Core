@@ -102,10 +102,10 @@ static const NSInteger kValueNotFound = -1;
     return @{
             @"serviceId": kConnectSDKDLNAServiceId,
             @"ssdp":@{
-                    @"filter":@"urn:schemas-upnp-org:device:MediaRenderer:1",
+                    @"filter":@"urn:smartspeaker-audio:service:SpeakerGroup:1",
                     @"requiredServices":@[
-                            @"urn:schemas-upnp-org:service:AVTransport:1",
-                            @"urn:schemas-upnp-org:service:RenderingControl:1"
+//                            @"urn:schemas-upnp-org:service:AVTransport:1",
+//                            @"urn:schemas-upnp-org:service:RenderingControl:1"
                     ]
             }
     };
@@ -165,11 +165,14 @@ static const NSInteger kValueNotFound = -1;
 
     [serviceList enumerateObjectsUsingBlock:^(id service, NSUInteger idx, BOOL *stop) {
         NSString *serviceName = service[@"serviceId"][@"text"];
-        NSString *controlPath = service[@"controlURL"][@"text"];
-        NSString *eventPath = service[@"eventSubURL"][@"text"];
+//        NSString *controlPath = service[@"controlURL"][@"text"];
+//        NSString *eventPath = service[@"eventSubURL"][@"text"];
+        NSString *controlPath = @"/MediaRenderer/AVTransport/Control";
+        NSString *eventPath = @"/MediaRenderer/AVTransport/Event";
         NSURL *controlURL = [self serviceURLForPath:controlPath];
         NSURL *eventURL = [self serviceURLForPath:eventPath];
-       
+        _avTransportControlURL = controlURL;
+        _avTransportEventURL = eventURL;
         if ([serviceName rangeOfString:@":AVTransport"].location != NSNotFound)
         {
             _avTransportControlURL = controlURL;
