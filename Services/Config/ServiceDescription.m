@@ -29,7 +29,6 @@
     
     if (self)
     {
-        self.groupInfo = @"N\\A";
         self.address = address;
         self.UUID = UUID;
         self.port = 0;
@@ -52,7 +51,12 @@
 
     if (self)
     {
+        //sonos specific fields
         self.groupInfo = dict[@"groupInfo"];
+        self.householdId = dict[@"householdId"];
+        self.websocketUrl = dict[@"websocketUrl"];
+        
+        //other fields
         self.serviceId = dict[@"serviceId"];
         self.address = dict[@"address"];
         self.port = [dict[@"port"] intValue];
@@ -78,7 +82,12 @@
 {
     NSMutableDictionary *dictionary = [NSMutableDictionary new];
 
+    //sonos specific fields
     if (self.groupInfo) dictionary[@"groupInfo"] = self.groupInfo;
+    if (self.groupInfo) dictionary[@"householdId"] = self.householdId;
+    if (self.groupInfo) dictionary[@"websocketUrl"] = self.websocketUrl;
+    
+    //other fields
     if (self.serviceId) dictionary[@"serviceId"] = self.serviceId;
     if (self.address) dictionary[@"address"] = self.address;
     if (self.port) dictionary[@"port"] = @(self.port);
@@ -101,6 +110,8 @@
 {
     ServiceDescription *serviceDescription = [[ServiceDescription alloc] initWithAddress:[self.address copy] UUID:[self.UUID copy]];
     serviceDescription.groupInfo = self.groupInfo;
+    serviceDescription.householdId = self.householdId;
+    serviceDescription.websocketUrl = self.websocketUrl;
     serviceDescription.serviceId = [self.serviceId copy];
     serviceDescription.port = self.port;
     serviceDescription.type = [self.type copy];
@@ -136,7 +147,6 @@
                                   STRING_PROPERTY(UUID),
                                   STRING_PROPERTY(type),
                                   STRING_PROPERTY(version),
-                                  STRING_PROPERTY(groupInfo),
                                   STRING_PROPERTY(friendlyName),
                                   STRING_PROPERTY(manufacturer),
                                   STRING_PROPERTY(modelName),
@@ -153,6 +163,7 @@
     };
 
     const BOOL haveSamePort = (self.port == service.port);
+    const BOOL haveSameConfigId = ([self.configId isEqualToString:service.configId]);
     const BOOL haveSameCommandURL = (!self.commandURL && !service.commandURL) || [self.commandURL isEqual:service.commandURL];
     const BOOL haveSameServiceList = (!self.serviceList && !service.serviceList) || [self.serviceList isEqualToArray:service.serviceList];
     const BOOL haveSameHeaders = (!self.locationResponseHeaders && !service.locationResponseHeaders) || [self.locationResponseHeaders isEqualToDictionary:service.locationResponseHeaders];
@@ -160,7 +171,7 @@
                                   [self.device isEqual:service.device]);
 
     // NB: lastDetection isn't compared here
-    return (haveSamePort && haveSameCommandURL && haveSameServiceList &&
+    return (haveSamePort && haveSameConfigId && haveSameCommandURL && haveSameServiceList &&
             haveSameHeaders && haveSameDevices);
 }
 

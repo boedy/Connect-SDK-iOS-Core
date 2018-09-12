@@ -84,6 +84,12 @@
 /*! Check if device is groupInfo */
 @property (nonatomic, copy) NSString *groupInfo;
 
+/*! Check if device is houseHoldId */
+@property (nonatomic, copy) NSString *householdId;
+
+/*! Check if device is websocketUrl */
+@property (nonatomic, copy) NSString *websocketUrl;
+
 /*! Name of the last wireless network this ConnectableDevice was discovered on. */
 @property (nonatomic, copy) NSString *lastSeenOnWifi;
 

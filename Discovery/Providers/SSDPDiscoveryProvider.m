@@ -328,23 +328,24 @@ static double searchAttemptsBeforeKill = 6.0;
 
                         @synchronized(_foundServices) { foundService = [_foundServices objectForKey:theUUID]; }
                         @synchronized(_helloDevices) { helloService = [_helloDevices objectForKey:theUUID]; }
-
-                        BOOL isNew = NO;
+                        
+                        NSString *configId = theHeaderDictionary[@"CONFIGID.UPNP.ORG"];
+                        
+                        BOOL isNew = foundService == nil && helloService == nil;
+                        BOOL isUpdated = ! isNew && ! [foundService.configId isEqualToString:configId ];
 
                         // If it isn't  - create a new device object and add it to device list
-                        if (foundService == nil && helloService == nil)
+                        if (isNew || isUpdated)
                         {
                             foundService = [[ServiceDescription alloc] init];
                             //Check that this is what is wanted
                             foundService.UUID = theUUID;
                             foundService.type =  theType;
-                            if ([theHeaderDictionary objectForKey:@"GROUPINFO.SMARTSPEAKER.AUDIO"] )
-                            {
-                                foundService.groupInfo = theHeaderDictionary[@"GROUPINFO.SMARTSPEAKER.AUDIO"];
-                            } else
-                            {
-                                foundService.groupInfo = @"N\\A";
-                            }
+                            foundService.configId = configId;
+                            foundService.groupInfo = theHeaderDictionary[@"GROUPINFO.SMARTSPEAKER.AUDIO"];
+                            foundService.householdId = theHeaderDictionary[@"HOUSEHOLD.SMARTSPEAKER.AUDIO"];
+                            foundService.websocketUrl = theHeaderDictionary[@"WEBSOCK.SMARTSPEAKER.AUDIO"];
+                            
                             foundService.address = anAddress;
                             foundService.port = 3001;
                             isNew = YES;

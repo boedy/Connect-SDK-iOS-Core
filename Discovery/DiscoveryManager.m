@@ -474,6 +474,10 @@
 
     _searching = NO;
     
+    //clear all devices on stop
+    _allDevices = [NSMutableDictionary new];
+    _compatibleDevices = [NSMutableDictionary new];
+    
     [_discoveryProviders enumerateObjectsUsingBlock:^(DiscoveryProvider *service, NSUInteger idx, BOOL *stop) {
         [service stopDiscovery];
     }];
@@ -546,6 +550,8 @@
     device.lastKnownIPAddress = description.address;
     device.lastSeenOnWifi = _currentSSID;
     device.groupInfo = description.groupInfo;
+    device.householdId = description.householdId;
+    device.websocketUrl = description.websocketUrl;
 
     [self addServiceDescription:description toDevice:device];
 
