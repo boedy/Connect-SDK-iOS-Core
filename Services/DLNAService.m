@@ -35,6 +35,7 @@ NSString *const kDataFieldName = @"XMLData";
 #define kActionFieldName @"SOAPAction"
 #define kSubscriptionTimeoutSeconds 300
 
+static DDLogLevel ddLogLevel = DDLogLevelInfo;
 
 static NSString *const kAVTransportNamespace = @"urn:schemas-upnp-org:service:AVTransport:1";
 static NSString *const kRenderingControlNamespace = @"urn:schemas-upnp-org:service:RenderingControl:1";
@@ -95,6 +96,14 @@ static const NSInteger kValueNotFound = -1;
     capabilities = [capabilities arrayByAddingObjectsFromArray:kVolumeControlCapabilities];
 
     [self setCapabilities:capabilities];
+}
+
++ (DDLogLevel)ddLogLevel {
+    return ddLogLevel;
+}
+
++ (void)ddSetLogLevel:(DDLogLevel)logLevel {
+    ddLogLevel = logLevel;
 }
 
 + (NSDictionary *) discoveryParameters
@@ -279,7 +288,7 @@ static const NSInteger kValueNotFound = -1;
     } else if ([channelsObject isKindOfClass:[NSDictionary class]]) {
         channels = [NSArray arrayWithObject:channelsObject];
     } else {
-        DLog(@"Unexpected contents for volume notification (%@ object)",
+        DDLogVerbose(@"Unexpected contents for volume notification (%@ object)",
              NSStringFromClass([channelsObject class]));
     }
 
@@ -312,14 +321,14 @@ static const NSInteger kValueNotFound = -1;
     [request setHTTPMethod:@"POST"];
     [request setHTTPBody:xmlData];
 
-    DLog(@"[OUT] : %@ \n %@", [request allHTTPHeaderFields], xml);
+    DDLogVerbose(@"[OUT] : %@ \n %@", [request allHTTPHeaderFields], xml);
 
     [NSURLConnection sendAsynchronousRequest:request queue:[NSOperationQueue mainQueue] completionHandler:^(NSURLResponse *response, NSData *data, NSError *connectionError)
     {
         NSError *xmlError;
         NSDictionary *dataXML = [CTXMLReader dictionaryForXMLData:data error:&xmlError];
 
-        DLog(@"[IN] : %@ \n %@", [((NSHTTPURLResponse *)response) allHeaderFields], dataXML);
+        DDLogVerbose(@"[IN] : %@ \n %@", [((NSHTTPURLResponse *)response) allHeaderFields], dataXML);
 
         if (connectionError)
         {
@@ -333,13 +342,15 @@ static const NSInteger kValueNotFound = -1;
         {
             NSDictionary *upnpFault = [self responseDataFromResponse:dataXML
                                                            forMethod:@"Fault"];
-
+            
             if (upnpFault)
             {
                 NSString *errorDescription = [[[[upnpFault objectForKey:@"detail"] objectForKeyEndingWithString:@":UPnPError"] objectForKeyEndingWithString:@":errorDescription"] objectForKey:@"text"];
 
-                if (!errorDescription)
+                if (!errorDescription){
                     errorDescription = @"Unknown UPnP error";
+                    DDLogDebug(@"Unknown UPnP error: %@", upnpFault);
+                }
 
                 if (command.callbackError)
                     dispatch_on_main(^{ command.callbackError([ConnectError generateErrorWithCode:ConnectStatusCodeTvError andDetails:errorDescription]); });
@@ -430,7 +441,7 @@ static const NSInteger kValueNotFound = -1;
 {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(resubscribeSubscriptions) object:nil];
     
-    NSLog(@"resubscribing");
+    DDLogInfo(@"resubscribing");
 
     [_serviceDescription.serviceList enumerateObjectsUsingBlock:^(id service, NSUInteger idx, BOOL *stop) {
         NSString *serviceId = service[@"serviceId"][@"text"];
@@ -453,15 +464,14 @@ static const NSInteger kValueNotFound = -1;
             NSHTTPURLResponse *response = (NSHTTPURLResponse *)_response;
 
             if (connectionError || !response){
-                NSLog(@"RESUBSCIBED FAILED!");
-                
+                DDLogInfo(@"RESUBSCIBED FAILED!");
                 return;
             }
             
 
             if (response.statusCode == 200)
             {
-                NSLog(@"RESUBSCIBED");
+                DDLogInfo(@"RESUBSCIBED");
                 [self performSelector:@selector(resubscribeSubscriptions) withObject:nil afterDelay:kSubscriptionTimeoutSeconds / 75];
             }
         }];

@@ -26,7 +26,6 @@
 #import "ConnectSDKDefaultPlatforms.h"
 
 #import "DLNAService.h"
-#import "NetcastTVService.h"
 
 #import "ConnectableDevice.h"
 #import "DefaultConnectableDeviceStore.h"
@@ -42,6 +41,8 @@
 @interface DiscoveryManager() <DiscoveryProviderDelegate, ServiceConfigDelegate>
 
 @end
+
+static DDLogLevel ddLogLevel = DDLogLevelInfo;
 
 @implementation DiscoveryManager
 {
@@ -60,12 +61,21 @@
 @synthesize pairingLevel = _pairingLevel;
 @synthesize useDeviceStore = _useDeviceStore;
 
++ (DDLogLevel)ddLogLevel {
+    return ddLogLevel;
+}
+
++ (void)ddSetLogLevel:(DDLogLevel)logLevel {
+    ddLogLevel = logLevel;
+}
+
 + (DiscoveryManager *) _sharedManager
 {
     static dispatch_once_t predicate = 0;
     __strong static id _sharedManager = nil;
 
     dispatch_once(&predicate, ^{
+        [DDLog addLogger:[DDOSLogger sharedInstance]];
         _sharedManager = [[self alloc] init];
     });
 
@@ -345,21 +355,6 @@
     }];
 }
 
-- (BOOL) descriptionIsNetcastTV:(ServiceDescription *)description
-{
-    BOOL isNetcast = NO;
-
-    if ([description.modelName.uppercaseString isEqualToString:@"LG TV"])
-    {
-        if ([description.modelDescription.uppercaseString rangeOfString:@"WEBOS"].location == NSNotFound)
-        {
-            isNetcast = [description.serviceId isEqualToString:kConnectSDKNetcastTVServiceId];
-        }
-    }
-
-    return isNetcast;
-}
-
 #pragma mark - Device lists
 
 - (NSDictionary *) allDevices
@@ -520,7 +515,7 @@
 
 - (void)discoveryProvider:(DiscoveryProvider *)provider didFindService:(ServiceDescription *)description
 {
-    DLog(@"%@ (%@)", description.friendlyName, description.serviceId);
+    DDLogDebug(@"%@ (%@)", description.friendlyName, description.serviceId);
 
     BOOL deviceIsNew = [_allDevices objectForKey:description.address] == nil;
     ConnectableDevice *device;
@@ -573,7 +568,7 @@
 
 - (void)discoveryProvider:(DiscoveryProvider *)provider didLoseService:(ServiceDescription *)description
 {
-    DLog(@"%@ (%@)", description.friendlyName, description.serviceId);
+    DDLogDebug(@"%@ (%@)", description.friendlyName, description.serviceId);
     
     ConnectableDevice *device;
 
@@ -583,12 +578,12 @@
     {
         [device removeServiceWithId:description.serviceId];
 
-        DLog(@"Removed service from device at address %@. Device has %lu services left",
+        DDLogDebug(@"Removed service from device at address %@. Device has %lu services left",
              description.address, (unsigned long)device.services.count);
 
         if (![device hasServices])
         {
-            DLog(@"Device at address %@ has been orphaned (has no services)", description.address);
+            DDLogDebug(@"Device at address %@ has been orphaned (has no services)", description.address);
 
             @synchronized (_allDevices) { [_allDevices removeObjectForKey:description.address]; }
             @synchronized (_compatibleDevices) { [_compatibleDevices removeObjectForKey:description.address]; }
@@ -603,7 +598,7 @@
 
 - (void)discoveryProvider:(DiscoveryProvider *)provider didFailWithError:(NSError *)error
 {
-    DLog(@"%@", error.localizedDescription);
+    DDLogDebug(@"%@", error.localizedDescription);
 }
 
 #pragma mark - Helper methods
@@ -616,10 +611,6 @@
     if (deviceServiceClass == [DLNAService class])
     {
         if (!description.locationXML)
-            return;
-    } else if (deviceServiceClass == [NetcastTVService class])
-    {
-        if (![self descriptionIsNetcastTV:description])
             return;
     }
 

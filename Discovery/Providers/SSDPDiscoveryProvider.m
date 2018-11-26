@@ -30,6 +30,8 @@
 #define kSSDP_multicast_address @"239.255.255.250"
 #define kSSDP_port 1900
 
+static DDLogLevel ddLogLevel = DDLogLevelInfo;
+
 // credit: http://stackoverflow.com/a/1108927/2715
 NSString* machineName()
 {
@@ -37,6 +39,11 @@ NSString* machineName()
     uname(&systemInfo);
 
     return [NSString stringWithCString:systemInfo.machine encoding:NSUTF8StringEncoding];
+}
+
+BOOL nilEqual(id a, id b)
+{
+    return (a == nil && b == nil) || [a isEqual:b];
 }
 
 @interface SSDPDiscoveryProvider() <NSXMLParserDelegate>
@@ -60,6 +67,14 @@ static double refreshTime = 10.0;
 static double searchAttemptsBeforeKill = 6.0;
 
 #pragma mark - Setup/creation
+
++ (DDLogLevel)ddLogLevel {
+    return ddLogLevel;
+}
+
++ (void)ddSetLogLevel:(DDLogLevel)logLevel {
+    ddLogLevel = logLevel;
+}
 
 - (instancetype) init
 {
@@ -87,6 +102,7 @@ static double searchAttemptsBeforeKill = 6.0;
 {
     if (!self.isRunning)
     {
+        DDLogDebug(@"Starting SSDP discovery");
         self.isRunning = YES;
         [self start];
     }
@@ -95,6 +111,8 @@ static double searchAttemptsBeforeKill = 6.0;
 - (void) stopDiscovery
 {
     [NSObject cancelPreviousPerformRequestsWithTarget:self];
+    
+    DDLogDebug(@"Stopping SSDP discovery");
 
     if (_searchSocket)
         [_searchSocket close];
@@ -172,7 +190,7 @@ static double searchAttemptsBeforeKill = 6.0;
         NSDictionary *ssdpInfo = [info objectForKey:@"ssdp"];
         NSString *searchFilter = [ssdpInfo objectForKey:@"filter"];
         NSString *userAgentToken = [ssdpInfo objectForKey:@"userAgentToken"];
-        
+
         [self sendRequestForFilter:searchFilter userAgentToken:userAgentToken killInactiveDevices:shouldKillInactiveDevices];
     }];
 }
@@ -219,9 +237,7 @@ static double searchAttemptsBeforeKill = 6.0;
     CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("HOST"), (__bridge  CFStringRef) _ssdpHostName);
     CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("MAN"), CFSTR("\"ssdp:discover\""));
     CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("MX"), CFSTR("10"));
-//    CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("ST"),  (__bridge  CFStringRef)filter);
-    //  Only search for Sonos speaker groups
-    CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("ST"), CFSTR("urn:smartspeaker-audio:service:SpeakerGroup:1"));
+    CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("ST"),  (__bridge  CFStringRef)filter);
     CFHTTPMessageSetHeaderFieldValue(theSearchRequest, CFSTR("USER-AGENT"), (__bridge CFStringRef)[self userAgentForToken:userAgentToken]);
 
     NSData *message = CFBridgingRelease(CFHTTPMessageCopySerializedMessage(theSearchRequest));
@@ -331,8 +347,10 @@ static double searchAttemptsBeforeKill = 6.0;
                         
                         NSString *configId = theHeaderDictionary[@"CONFIGID.UPNP.ORG"];
                         
+                        if(!configId) return;
+                        
                         BOOL isNew = foundService == nil && helloService == nil;
-                        BOOL isUpdated = ! isNew && ! [foundService.configId isEqualToString:configId ];
+                        BOOL isUpdated = ! isNew && ! nilEqual(foundService.configId,configId);
 
                         // If it isn't  - create a new device object and add it to device list
                         if (isNew || isUpdated)
@@ -349,6 +367,8 @@ static double searchAttemptsBeforeKill = 6.0;
                             foundService.address = anAddress;
                             foundService.port = 3001;
                             isNew = YES;
+                            
+                            DDLogVerbose(@"Found device ip:%@, port:%lu, groupInfo:%@", foundService.address, foundService.port, foundService.groupInfo);
                         }
 
                         foundService.lastDetection = [[NSDate date] timeIntervalSince1970];
@@ -383,35 +403,41 @@ static double searchAttemptsBeforeKill = 6.0;
         NSError *xmlError;
         NSDictionary *xml = [CTXMLReader dictionaryForXMLData:data error:&xmlError];
 
-        if (!xmlError)
+        if (xmlError)
         {
-            NSDictionary *device = [self device:[xml valueForKeyPath:@"root.device"]
-                   containingServicesWithFilter:theType];
-
-            if (device)
-            {
-                ServiceDescription *service;
-                @synchronized(_helloDevices) { service = [_helloDevices objectForKey:UUID]; }
-
-                if (service)
-                {
-                    service.type = theType;
-                    service.friendlyName = [device valueForKeyPath:@"friendlyName.text"];
-                    service.modelName = [[device objectForKey:@"modelName"] objectForKey:@"text"];
-                    service.modelNumber = [[device objectForKey:@"modelNumber"] objectForKey:@"text"];
-                    service.modelDescription = [[device objectForKey:@"modelDescription"] objectForKey:@"text"];
-                    service.manufacturer = [[device objectForKey:@"manufacturer"] objectForKey:@"text"];
-                    service.locationXML = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-                    service.serviceList = [self serviceListForDevice:device];
-                    service.commandURL = response.URL;
-                    service.locationResponseHeaders = [((NSHTTPURLResponse *)response) allHeaderFields];
-
-                    @synchronized(_foundServices) { [_foundServices setObject:service forKey:UUID]; }
-
-                    [self notifyDelegateOfNewService:service];
-                }
-            }
+            DDLogVerbose(@"XML Error occured");
+            return;
         }
+        NSDictionary *device = [self device:[xml valueForKeyPath:@"root.device"]
+               containingServicesWithFilter:theType];
+
+        if (!device)
+        {
+            return;
+        }
+        
+        ServiceDescription *service;
+        @synchronized(_helloDevices) { service = [_helloDevices objectForKey:UUID]; }
+
+        if (!service)
+        {
+            return;
+        }
+        
+        service.type = theType;
+        service.friendlyName = [device valueForKeyPath:@"friendlyName.text"];
+        service.modelName = [[device objectForKey:@"modelName"] objectForKey:@"text"];
+        service.modelNumber = [[device objectForKey:@"modelNumber"] objectForKey:@"text"];
+        service.modelDescription = [[device objectForKey:@"modelDescription"] objectForKey:@"text"];
+        service.manufacturer = [[device objectForKey:@"manufacturer"] objectForKey:@"text"];
+        service.locationXML = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        service.serviceList = [self serviceListForDevice:device];
+        service.commandURL = response.URL;
+        service.locationResponseHeaders = [((NSHTTPURLResponse *)response) allHeaderFields];
+
+        @synchronized(_foundServices) { [_foundServices setObject:service forKey:UUID]; }
+
+        [self notifyDelegateOfNewService:service];
         
         @synchronized(_helloDevices) { [_helloDevices removeObjectForKey:UUID]; }
     }];
@@ -419,6 +445,7 @@ static double searchAttemptsBeforeKill = 6.0;
 
 - (void) notifyDelegateOfNewService:(ServiceDescription *)service
 {
+    DDLogVerbose(@"Notify of NEW service: %@", [service toJSONObject]);
     NSArray *serviceIds = [self serviceIdsForFilter:service.type];
 
     [serviceIds enumerateObjectsUsingBlock:^(NSString *serviceId, NSUInteger idx, BOOL *stop) {
@@ -431,6 +458,7 @@ static double searchAttemptsBeforeKill = 6.0;
 
 - (void) notifyDelegateOfLostService:(ServiceDescription *)service
 {
+    DDLogVerbose(@"Notify of LOST service: %@", [service toJSONObject]);
     NSArray *serviceIds = [self serviceIdsForFilter:service.type];
 
     [serviceIds enumerateObjectsUsingBlock:^(NSString *serviceId, NSUInteger idx, BOOL *stop) {
